@@ -55,4 +55,10 @@ public class UserService implements UserDetailsService {
         return userRepository.save(user);
     }
 
+    public User changeToptToken(Long userId, String token) {
+        User user = loadUserById(userId);
+        user.setTotpSecret(token);
+        return userRepository.save(user);
+    }
+
 }

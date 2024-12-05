@@ -1,5 +1,6 @@
 package com.holobyn.security.domain;
 
+import jakarta.annotation.Nullable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -46,6 +47,9 @@ public class User implements UserDetails {
     @NotBlank
     private String password;
 
+    @Nullable
+    private String totpSecret;
+
     @Column(columnDefinition = "boolean default false")
     private boolean isEnabled;
 
@@ -80,6 +84,10 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return isEnabled;
+    }
+
+    public boolean is2FAEnabled(){
+        return totpSecret == null ? false: true;
     }
 
 }

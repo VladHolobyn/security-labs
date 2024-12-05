@@ -34,6 +34,7 @@ public class UserMapper {
             .isEnabled(user.isEnabled())
             .role(user.getRole())
             .id(user.getId())
+            .is2FAEnabled(user.is2FAEnabled())
             .build();
     }
 

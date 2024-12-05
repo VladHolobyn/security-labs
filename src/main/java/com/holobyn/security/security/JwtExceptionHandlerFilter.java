@@ -48,11 +48,12 @@ public class JwtExceptionHandlerFilter extends OncePerRequestFilter {
             message = "Unsupported JWT token";
         } catch (AuthenticationException ex) {
             message = "Wrong credentials";
-        } catch (Exception e) {
-            message = e.getMessage();
         }
-
-        throw new AccessException(message){};
+//        catch (Exception e) {
+//            message = e.getMessage();
+//        }
+//
+//        throw new AccessException(message){};
 
 //        ErrorDto errorDTO = new ErrorDto(message);
 //        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

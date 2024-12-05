@@ -20,4 +20,6 @@ public class UserDto {
     private boolean isEnabled;
 
     private UserRole role;
+
+    private boolean is2FAEnabled;
 }

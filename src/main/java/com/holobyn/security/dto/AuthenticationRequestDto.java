@@ -20,4 +20,6 @@ public class AuthenticationRequestDto {
     @NotBlank
     private String password;
 
+    private Integer code;
+
 }

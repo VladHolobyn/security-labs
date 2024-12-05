@@ -8,6 +8,7 @@ import com.holobyn.security.dto.PasswordRestoreDto;
 import com.holobyn.security.dto.ReqistrationRequestDto;
 import com.holobyn.security.dto.UserDto;
 import com.holobyn.security.dto.VerificationDto;
+import com.holobyn.security.exception.BlockeException;
 import com.holobyn.security.mapper.UserMapper;
 import com.holobyn.security.security.JwtUtils;
 import jakarta.mail.MessagingException;
@@ -18,6 +19,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +33,8 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final EmailService emailService;
     private final FailedLoginAttemptSercvice failedLoginAttemptSercvice;
+    private final GoogleAuthService googleAuthService;
+    private final PasswordEncoder encoder;
 
 
 
@@ -41,10 +45,16 @@ public class AuthService {
 
         User userDetails = (User) authentication.getPrincipal();
 
+        System.out.println(failedLoginAttemptSercvice.isBlocked(userDetails.getId()));
         if (failedLoginAttemptSercvice.isBlocked(userDetails.getId())) {
-            new RuntimeException("Your account is blocked wait 5 minutes to try again");
+            throw new BlockeException("Your account is blocked wait 5 minutes to try again");
         }
 
+        if (userDetails.is2FAEnabled()) {
+            if (!googleAuthService.isValid(userDetails.getTotpSecret(), loginDTO.getCode())) {
+                throw new BlockeException("Wrong code");
+            }
+        }
 
         String email = userDetails.getUsername();
         Long userID = userDetails.getId();
@@ -54,7 +64,19 @@ public class AuthService {
 
         String jwt = jwtUtils.generateToken(email, userID, role);
 
-        return new AuthenticationResponseDto(jwt);
+        return new AuthenticationResponseDto(jwt, false);
+    }
+
+    public AuthenticationResponseDto verify(Long userId, Integer code) {
+        User user = userService.loadUserById(userId);
+
+        if (!googleAuthService.isValid(user.getTotpSecret(), code)) {
+            throw new BlockeException("Wrong code");
+        }
+
+        String jwt = jwtUtils.generateToken(user.getEmail(), user.getId(), user.getRole());
+
+        return new AuthenticationResponseDto(jwt, false);
     }
 
     public UserDto register(ReqistrationRequestDto reqistrationRequestDto) {
@@ -112,7 +134,7 @@ public class AuthService {
         try {
             Long userId = jwtUtils.extractRestoreUserDetails(passwordRestoreDto.getRestoreToken());
 
-            if(!isValidPassword(reqistrationRequestDto.getPassword())) {
+            if(!isValidPassword(passwordRestoreDto.getNewPassword())) {
                 throw new RuntimeException("Weak password");
             }
 
@@ -151,6 +173,25 @@ public class AuthService {
 
         return false;
     }
+
+
+    public byte[] enable2FA(Long userId) {
+        String key = googleAuthService.generateKey();
+        User user = userService.changeToptToken(userId, key);
+
+        return googleAuthService.generateQRUrl(key, user.getEmail());
+    }
+    public UserDto disable2FA(Long userId) {
+        User user = userService.changeToptToken(userId, null);
+        return userMapper.toDto(user);
+    }
+
+    public byte[] getQRcode(Long userId) {
+        User user = userService.loadUserById(userId);
+        return googleAuthService.generateQRUrl(user.getTotpSecret(), user.getEmail());
+    }
+
+
 
 
 }

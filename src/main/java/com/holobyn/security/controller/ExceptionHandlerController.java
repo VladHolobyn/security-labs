@@ -1,6 +1,7 @@
 package com.holobyn.security.controller;
 
 import com.holobyn.security.dto.ErrorDto;
+import com.holobyn.security.exception.BlockeException;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -16,14 +17,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class ExceptionHandlerController {
 
-//    @ExceptionHandler(AuthenticationException.class)
-//    @ResponseStatus(HttpStatus.BAD_REQUEST)
-//    public ErrorDto handleValidationError(AuthenticationException e) {
-//
+    @ExceptionHandler(BlockeException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorDto handleValidationError(BlockeException e) {
+
 //        System.out.println(SecurityContextHolder.getContext().getAuthentication().getPrincipal());
-//
-//        return new ErrorDto("Wrong credentials");
-//    }
+
+        return new ErrorDto(e.getMessage());
+    }
 
 
 }
