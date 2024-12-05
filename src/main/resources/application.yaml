@@ -18,7 +18,7 @@ spring:
   security:
     secret-key: ${JWT_SECRET}
     aes-key: ${AES_KEY}
-    token-expiration-time: 36_000_000  #
+    token-expiration-time: 1_800_000  # 30m
     reset-pass-token-expiration-time: 300_000 # 5m
     verification-token-expiration-time: 300_000 # 5m
     invalid-login-attempts: 3

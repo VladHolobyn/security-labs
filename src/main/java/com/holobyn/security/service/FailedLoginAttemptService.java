@@ -18,10 +18,10 @@ public class FailedLoginAttemptService {
     private final RedisTemplate<String, String> redisTemplate;
 
     @Value("${spring.security.invalid-login-attempts}")
-    private final int maxAttempts;
+    private int maxAttempts;
 
     @Value("${spring.security.wait-time-m}")
-    private final int waitTimeInMinutes;
+    private int waitTimeInMinutes;
 
     public void failedLoginAttempt(Authentication authentication) {
         String key = "loginAttempts:%s".formatted(authentication.getPrincipal());
