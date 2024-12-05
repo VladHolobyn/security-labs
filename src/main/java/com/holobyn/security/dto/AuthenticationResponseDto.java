@@ -13,6 +13,5 @@ import lombok.Setter;
 public class AuthenticationResponseDto {
 
     private String token;
-    private boolean mfa;
 
 }
