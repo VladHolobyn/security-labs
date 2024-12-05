@@ -63,8 +63,9 @@ public class AuthService {
             throw new RuntimeException("User with this email already exists");
         }
 
-//        TODO
-//        password check
+        if(!isValidPassword(reqistrationRequestDto.getPassword())) {
+            throw new RuntimeException("Weak password");
+        }
 
         User createdUser = userService.save(reqistrationRequestDto);
 //        sendVerificationCode(createdUser);
@@ -111,7 +112,9 @@ public class AuthService {
         try {
             Long userId = jwtUtils.extractRestoreUserDetails(passwordRestoreDto.getRestoreToken());
 
-//            todo: check password
+            if(!isValidPassword(reqistrationRequestDto.getPassword())) {
+                throw new RuntimeException("Weak password");
+            }
 
             return userMapper.toDto(userService.changePassword(userId, passwordRestoreDto.getNewPassword()));
         } catch (Exception e) {
@@ -119,6 +122,35 @@ public class AuthService {
         }
     }
 
+
+    private boolean isValidPassword(String password) {
+        if (password == null || password.length() < 8) {
+            return false;
+        }
+
+        boolean hasUppercase = false;
+        boolean hasLowercase = false;
+        boolean hasDigit = false;
+        boolean hasSpecialChar = false;
+
+        for (char c : password.toCharArray()) {
+            if (Character.isUpperCase(c)) {
+                hasUppercase = true;
+            } else if (Character.isLowerCase(c)) {
+                hasLowercase = true;
+            } else if (Character.isDigit(c)) {
+                hasDigit = true;
+            } else if (!Character.isLetterOrDigit(c)) {
+                hasSpecialChar = true;
+            }
+
+            if (hasUppercase && hasLowercase && hasDigit && hasSpecialChar) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
 
 }
