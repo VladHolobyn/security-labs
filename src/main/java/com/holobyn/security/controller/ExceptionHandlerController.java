@@ -20,7 +20,6 @@ public class ExceptionHandlerController {
     @ExceptionHandler(AuthenticationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorDto handleValidationError(AuthenticationException e) {
-        System.out.println("hello 2");
         return new ErrorDto(e.getMessage());
     }
 

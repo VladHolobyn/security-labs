@@ -43,6 +43,10 @@ public class AuthService {
         User user = (User) authentication.getPrincipal();
 
         if (user.is2FAEnabled()) {
+            if (loginDTO.getCode() == null) {
+                throw new ApiException("Invalid code");
+            }
+
             String userSecretKey;
             try {
                 userSecretKey = aesUtil.decrypt(user.getTotpSecret());
@@ -167,6 +171,10 @@ public class AuthService {
 
     public byte[] getQRCode(Long userId) {
         User user = userService.loadUserById(userId);
+        if (!user.is2FAEnabled()) {
+            throw new ApiException("2FA is disabled");
+        }
+
         return googleAuthService.generateQRImage(user.getTotpSecret(), user.getEmail());
     }
 

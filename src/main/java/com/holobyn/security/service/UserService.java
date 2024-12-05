@@ -66,7 +66,7 @@ public class UserService implements UserDetailsService {
         User user = loadUserById(userId);
         String encryptedToken = token;
 
-        if (!token.equals(null)) {
+        if (token != null) {
             try {
                 encryptedToken = aesUtil.encrypt(token);
             } catch (Exception e) {

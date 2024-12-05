@@ -48,6 +48,9 @@ public class CustomDaoAuthenticationProvider extends DaoAuthenticationProvider {
             return auth;
 
         } catch (BadCredentialsException e) {
+            if (failedLoginAttemptService.isBlocked((String)authentication.getPrincipal())) {
+                throw new ApiException("Your account is blocked wait 5 minutes to try again");
+            }
             failedLoginAttemptService.failedLoginAttempt(authentication);
             throw e;
         }

@@ -1,5 +1,6 @@
 package com.holobyn.security.controller;
 
+import com.holobyn.security.domain.User;
 import com.holobyn.security.dto.AuthenticationRequestDto;
 import com.holobyn.security.dto.AuthenticationResponseDto;
 import com.holobyn.security.dto.PasswordRestoreDto;
@@ -14,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -56,22 +58,24 @@ public class AuthController {
         return authService.restorePassword(passwordRestoreDto);
     }
 
-    @PostMapping("/2fa/{userId}/enable")
+    @PostMapping("/2fa/enable")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'USER')")
-    public ResponseEntity<byte[]> enable2fa(@PathVariable Long userId) {
-        return sendImage(authService.enable2FA(userId));
+    public ResponseEntity<byte[]> enable2fa(
+        @AuthenticationPrincipal User user
+    ) {
+        return sendImage(authService.enable2FA(user.getId()));
     }
 
-    @PostMapping("/2fa/{userId}/disable")
+    @PostMapping("/2fa/disable")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'USER')")
-    public UserDto disable2fa(@PathVariable Long userId) {
-        return authService.disable2FA(userId);
+    public UserDto disable2fa(@AuthenticationPrincipal User user) {
+        return authService.disable2FA(user.getId());
     }
 
-    @GetMapping("/2fa/qr/{userId}")
+    @GetMapping("/2fa/qr")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'USER')")
-    public ResponseEntity<byte[]> getQRCode(@PathVariable Long userId) {
-        return sendImage(authService.getQRCode(userId));
+    public ResponseEntity<byte[]> getQRCode(@AuthenticationPrincipal User user) {
+        return sendImage(authService.getQRCode(user.getId()));
     }
 
 
