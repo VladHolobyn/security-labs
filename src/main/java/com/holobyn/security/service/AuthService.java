@@ -1,26 +1,19 @@
 package com.holobyn.security.service;
 
 import com.holobyn.security.domain.User;
-import com.holobyn.security.domain.UserRole;
 import com.holobyn.security.dto.AuthenticationRequestDto;
 import com.holobyn.security.dto.AuthenticationResponseDto;
 import com.holobyn.security.dto.PasswordRestoreDto;
 import com.holobyn.security.dto.ReqistrationRequestDto;
 import com.holobyn.security.dto.UserDto;
-import com.holobyn.security.dto.VerificationDto;
-import com.holobyn.security.exception.BlockeException;
+import com.holobyn.security.exception.ApiException;
 import com.holobyn.security.mapper.UserMapper;
 import com.holobyn.security.security.JwtUtils;
 import jakarta.mail.MessagingException;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -28,14 +21,18 @@ import org.springframework.stereotype.Service;
 public class AuthService {
 
     private final UserService userService;
-    private final UserMapper userMapper;
-    private final JwtUtils jwtUtils;
-    private final AuthenticationManager authenticationManager;
-    private final EmailService emailService;
-    private final FailedLoginAttemptSercvice failedLoginAttemptSercvice;
-    private final GoogleAuthService googleAuthService;
-    private final PasswordEncoder encoder;
 
+    private final UserMapper userMapper;
+
+    private final JwtUtils jwtUtils;
+
+    private final AuthenticationManager authenticationManager;
+
+    private final EmailService emailService;
+
+    private final GoogleAuthService googleAuthService;
+
+    private final AESUtil aesUtil;
 
 
     public AuthenticationResponseDto login(AuthenticationRequestDto loginDTO) {
@@ -43,66 +40,48 @@ public class AuthService {
             new UsernamePasswordAuthenticationToken(loginDTO.getEmail(), loginDTO.getPassword())
         );
 
-        User userDetails = (User) authentication.getPrincipal();
+        User user = (User) authentication.getPrincipal();
 
-        System.out.println(failedLoginAttemptSercvice.isBlocked(userDetails.getId()));
-        if (failedLoginAttemptSercvice.isBlocked(userDetails.getId())) {
-            throw new BlockeException("Your account is blocked wait 5 minutes to try again");
-        }
+        if (user.is2FAEnabled()) {
+            String userSecretKey;
+            try {
+                userSecretKey = aesUtil.decrypt(user.getTotpSecret());
+            } catch (Exception e) {
+                throw new ApiException(e.getMessage());
+            }
 
-        if (userDetails.is2FAEnabled()) {
-            if (!googleAuthService.isValid(userDetails.getTotpSecret(), loginDTO.getCode())) {
-                throw new BlockeException("Wrong code");
+            if (!googleAuthService.isValid(userSecretKey, loginDTO.getCode())) {
+                throw new ApiException("Invalid code");
             }
         }
 
-        String email = userDetails.getUsername();
-        Long userID = userDetails.getId();
-        UserRole role = UserRole.valueOf(
-            userDetails.getAuthorities().stream().map(Object::toString).toList().get(0)
-        );
-
-        String jwt = jwtUtils.generateToken(email, userID, role);
-
-        return new AuthenticationResponseDto(jwt, false);
-    }
-
-    public AuthenticationResponseDto verify(Long userId, Integer code) {
-        User user = userService.loadUserById(userId);
-
-        if (!googleAuthService.isValid(user.getTotpSecret(), code)) {
-            throw new BlockeException("Wrong code");
-        }
-
-        String jwt = jwtUtils.generateToken(user.getEmail(), user.getId(), user.getRole());
-
-        return new AuthenticationResponseDto(jwt, false);
+        String jwt = jwtUtils.generateToken(user.getUsername(), user.getId(), user.getRole());
+        return new AuthenticationResponseDto(jwt);
     }
 
     public UserDto register(ReqistrationRequestDto reqistrationRequestDto) {
 
         if (userService.userExistsByEmail(reqistrationRequestDto.getEmail())) {
-            throw new RuntimeException("User with this email already exists");
+            throw new ApiException("User with this email already exists");
         }
 
-        if(!isValidPassword(reqistrationRequestDto.getPassword())) {
-            throw new RuntimeException("Weak password");
+        if (!isValidPassword(reqistrationRequestDto.getPassword())) {
+            throw new ApiException("Your password is weak");
         }
 
         User createdUser = userService.save(reqistrationRequestDto);
-//        sendVerificationCode(createdUser);
+        sendVerificationCode(createdUser);
 
         return userMapper.toDto(createdUser);
     }
 
     private void sendVerificationCode(User user) {
-
         String token = jwtUtils.generateVerificationToken(user.getEmail(), user.getId());
 
         try {
-            emailService.sendEmail(user.getEmail(), "Verification Code", "Your token: "+ token);
+            emailService.sendEmail(user.getEmail(), "Verification Code", "Your token: " + token);
         } catch (MessagingException e) {
-            throw new RuntimeException(e);
+            throw new ApiException(e.getMessage());
         }
     }
 
@@ -112,19 +91,18 @@ public class AuthService {
             Long userId = jwtUtils.extractVerificationUserDetails(token);
             return userMapper.toDto(userService.activate(userId));
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new ApiException(e.getMessage());
         }
     }
 
     public String passwordRestoreRequest(String email) {
         User user = (User) userService.loadUserByUsername(email);
-
         String token = jwtUtils.generateRestoreToken(user.getEmail(), user.getId());
 
         try {
-            emailService.sendEmail(user.getEmail(), "Restore Password Code", "Your token: "+ token);
+            emailService.sendEmail(user.getEmail(), "Reset Password Code", "Your token: " + token);
         } catch (MessagingException e) {
-            throw new RuntimeException(e);
+            throw new ApiException(e.getMessage());
         }
 
         return "Ok";
@@ -134,13 +112,13 @@ public class AuthService {
         try {
             Long userId = jwtUtils.extractRestoreUserDetails(passwordRestoreDto.getRestoreToken());
 
-            if(!isValidPassword(passwordRestoreDto.getNewPassword())) {
-                throw new RuntimeException("Weak password");
+            if (!isValidPassword(passwordRestoreDto.getNewPassword())) {
+                throw new ApiException("Your password is weak");
             }
 
             return userMapper.toDto(userService.changePassword(userId, passwordRestoreDto.getNewPassword()));
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new ApiException(e.getMessage());
         }
     }
 
@@ -179,19 +157,17 @@ public class AuthService {
         String key = googleAuthService.generateKey();
         User user = userService.changeToptToken(userId, key);
 
-        return googleAuthService.generateQRUrl(key, user.getEmail());
+        return googleAuthService.generateQRImage(key, user.getEmail());
     }
+
     public UserDto disable2FA(Long userId) {
         User user = userService.changeToptToken(userId, null);
         return userMapper.toDto(user);
     }
 
-    public byte[] getQRcode(Long userId) {
+    public byte[] getQRCode(Long userId) {
         User user = userService.loadUserById(userId);
-        return googleAuthService.generateQRUrl(user.getTotpSecret(), user.getEmail());
+        return googleAuthService.generateQRImage(user.getTotpSecret(), user.getEmail());
     }
-
-
-
 
 }

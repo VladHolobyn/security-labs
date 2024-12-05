@@ -2,6 +2,7 @@ package com.holobyn.security.service;
 
 import com.holobyn.security.domain.User;
 import com.holobyn.security.dto.ReqistrationRequestDto;
+import com.holobyn.security.exception.ApiException;
 import com.holobyn.security.mapper.UserMapper;
 import com.holobyn.security.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -18,19 +19,25 @@ import org.springframework.stereotype.Service;
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
+
     private final UserMapper userMapper;
+
     private final PasswordEncoder passwordEncoder;
+
+    private final AESUtil aesUtil;
 
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         return userRepository.findByEmail(email)
-                                  .orElseThrow(() -> new EntityNotFoundException("User with email: %s not found".formatted(email)));
+                             .orElseThrow(
+                                 () -> new EntityNotFoundException("User with email: %s not found".formatted(email)));
     }
 
     public User loadUserById(Long id) throws UsernameNotFoundException {
         return userRepository.findById(id)
-                             .orElseThrow(() -> new EntityNotFoundException("User with id: %s not found".formatted(id)));
+                             .orElseThrow(
+                                 () -> new EntityNotFoundException("User with id: %s not found".formatted(id)));
     }
 
     public boolean userExistsByEmail(String email) {
@@ -39,7 +46,7 @@ public class UserService implements UserDetailsService {
 
     public User save(ReqistrationRequestDto reqistrationRequestDto) {
         User user = userMapper.toEntity(reqistrationRequestDto);
-        user.setEnabled(true);  // todo: change to false
+        user.setEnabled(false);
         return userRepository.save(user);
     }
 
@@ -57,7 +64,17 @@ public class UserService implements UserDetailsService {
 
     public User changeToptToken(Long userId, String token) {
         User user = loadUserById(userId);
-        user.setTotpSecret(token);
+        String encryptedToken = token;
+
+        if (!token.equals(null)) {
+            try {
+                encryptedToken = aesUtil.encrypt(token);
+            } catch (Exception e) {
+                throw new ApiException(e.getMessage());
+            }
+        }
+
+        user.setTotpSecret(encryptedToken);
         return userRepository.save(user);
     }
 

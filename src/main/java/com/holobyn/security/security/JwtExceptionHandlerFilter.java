@@ -10,11 +10,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.rmi.AccessException;
-import java.rmi.RemoteException;
 import lombok.AllArgsConstructor;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -46,20 +43,12 @@ public class JwtExceptionHandlerFilter extends OncePerRequestFilter {
             message = "Expired JWT token";
         } catch (UnsupportedJwtException ex) {
             message = "Unsupported JWT token";
-        } catch (AuthenticationException ex) {
-            message = "Wrong credentials";
         }
-//        catch (Exception e) {
-//            message = e.getMessage();
-//        }
-//
-//        throw new AccessException(message){};
 
-//        ErrorDto errorDTO = new ErrorDto(message);
-//        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-//        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-//        response.getWriter().write(objectMapper.writeValueAsString(errorDTO));
-
+        ErrorDto errorDTO = new ErrorDto(message);
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write(objectMapper.writeValueAsString(errorDTO));
     }
 
 }

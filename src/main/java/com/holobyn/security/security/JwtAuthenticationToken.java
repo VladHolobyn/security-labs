@@ -8,9 +8,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 
 public class JwtAuthenticationToken implements Authentication {
+
     @Getter
     private final String token;
+
     private final UserDetails principal;
+
     private boolean isAuthenticated;
 
 

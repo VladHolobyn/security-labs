@@ -2,26 +2,32 @@ package com.holobyn.security.security;
 
 import com.holobyn.security.domain.User;
 import com.holobyn.security.domain.UserRole;
+import com.holobyn.security.exception.ApiException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.experimental.UtilityClass;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 
-//@UtilityClass
 @Component
 public class JwtUtils {
 
     @Value("${spring.security.secret-key}")
     private String secret;
+
     @Value("${spring.security.token-expiration-time}")
     private int expirationTime;
+
+    @Value("${spring.security.reset-pass-token-expiration-time}")
+    private int resetPasswordTokenexpirationTime;
+
+    @Value("${spring.security.verification-token-expiration-time}")
+    private int verificationTokenexpirationTime;
 
 
     public String generateToken(String email, Long userId, UserRole role) {
@@ -29,15 +35,7 @@ public class JwtUtils {
         claims.put("role", role);
         claims.put("userId", userId);
 
-        System.out.println(secret);
-
-        return Jwts.builder()
-                   .setClaims(claims)
-                   .setSubject(email)
-                   .setIssuedAt(new Date(System.currentTimeMillis()))
-                   .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
-                   .signWith(SignatureAlgorithm.HS256, secret)
-                   .compact();
+        return generateJwtToken(email, claims, expirationTime);
     }
 
     public String generateVerificationToken(String email, Long userId) {
@@ -45,15 +43,7 @@ public class JwtUtils {
         claims.put("email", email);
         claims.put("userId", userId);
 
-        System.out.println(secret);
-
-        return Jwts.builder()
-                   .setClaims(claims)
-                   .setSubject("verification")
-                   .setIssuedAt(new Date(System.currentTimeMillis()))
-                   .setExpiration(new Date(System.currentTimeMillis() + 300_000)) //5m
-                   .signWith(SignatureAlgorithm.HS256, secret)
-                   .compact();
+        return generateJwtToken("Verification Token", claims, verificationTokenexpirationTime);
     }
 
     public String generateRestoreToken(String email, Long userId) {
@@ -61,22 +51,29 @@ public class JwtUtils {
         claims.put("email", email);
         claims.put("userId", userId);
 
-        System.out.println(secret);
+        return generateJwtToken("Reset Token", claims, resetPasswordTokenexpirationTime);
+    }
 
+    private String generateJwtToken(String subject, Map<String, Object> claims, int expiration) {
         return Jwts.builder()
                    .setClaims(claims)
-                   .setSubject("restore")
+                   .setSubject(subject)
                    .setIssuedAt(new Date(System.currentTimeMillis()))
-                   .setExpiration(new Date(System.currentTimeMillis() + 300_000)) //5m
+                   .setExpiration(new Date(System.currentTimeMillis() + expiration))
                    .signWith(SignatureAlgorithm.HS256, secret)
                    .compact();
     }
 
+    private Claims parse(String token) {
+        return Jwts.parser()
+                   .setSigningKey(secret)
+                   .parseClaimsJws(token)
+                   .getBody();
+    }
+
+
     public UserDetails extractUserDetails(String token) {
-        Claims claims = Jwts.parser()
-                            .setSigningKey(secret)
-                            .parseClaimsJws(token)
-                            .getBody();
+        Claims claims = parse(token);
 
         return User.builder()
                    .id(claims.get("userId", Long.class))
@@ -86,31 +83,20 @@ public class JwtUtils {
     }
 
     public Long extractVerificationUserDetails(String token) {
-        Claims claims = Jwts.parser()
-                            .setSigningKey(secret)
-                            .parseClaimsJws(token)
-                            .getBody();
+        Claims claims = parse(token);
 
-        if (!claims.getSubject().equals("verification")) {
-            throw new RuntimeException("Not a verification token");
+        if (!claims.getSubject().equals("Verification Token")) {
+            throw new ApiException("Not a verification token");
         }
 
         return claims.get("userId", Long.class);
-
-//        return User.builder()
-//                   .id(claims.get("userId", Long.class))
-//                   .email(claims.get("email", String.class))
-//                   .build();
     }
 
     public Long extractRestoreUserDetails(String token) {
-        Claims claims = Jwts.parser()
-                            .setSigningKey(secret)
-                            .parseClaimsJws(token)
-                            .getBody();
+        Claims claims = parse(token);
 
-        if (!claims.getSubject().equals("restore")) {
-            throw new RuntimeException("Not a restore token");
+        if (!claims.getSubject().equals("Reset Token")) {
+            throw new ApiException("Not a reset token");
         }
 
         return claims.get("userId", Long.class);

@@ -17,8 +17,12 @@ spring:
 
   security:
     secret-key: ${JWT_SECRET}
-    token-expiration-time: 36_000_000
-
+    aes-key: ${AES_KEY}
+    token-expiration-time: 36_000_000  #
+    reset-pass-token-expiration-time: 300_000 # 5m
+    verification-token-expiration-time: 300_000 # 5m
+    invalid-login-attempts: 3
+    wait-time-m: 2
 
   mail:
     host: smtp.gmail.com

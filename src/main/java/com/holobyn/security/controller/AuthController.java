@@ -69,8 +69,9 @@ public class AuthController {
     }
 
     @GetMapping("/2fa/qr/{userId}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'USER')")
     public ResponseEntity<byte[]> getQRCode(@PathVariable Long userId) {
-        return sendImage(authService.getQRcode(userId));
+        return sendImage(authService.getQRCode(userId));
     }
 
 
